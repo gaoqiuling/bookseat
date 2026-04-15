@@ -59,6 +59,11 @@ function formatDate(dateStr) {
 
 async function fetchPeriods(dateStr) {
   const json = await http.get('/api/period', { date: dateStr, reservationType: 14, libraryId: 1 })
+  if (json.resultStatus?.code === 101) {
+    authStore.removeExpiredAccount(authStore.token)
+    router.push('/login')
+    return []
+  }
   if (json.resultStatus?.code !== 0 && json.resultStatus?.code !== 200) return []
   return (Array.isArray(json.resultValue) ? json.resultValue : []).map(item => ({
     periodTime: item.periodTime,

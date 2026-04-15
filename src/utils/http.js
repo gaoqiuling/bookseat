@@ -7,7 +7,15 @@ const instance = axios.create({
 
 instance.interceptors.request.use((config) => {
   config.headers['accesstoken'] = authStore.token
-  config.headers['timestamp'] = Date.now().toString()
+  const ts = Date.now().toString()
+  config.headers['timestamp'] = ts
+  if (config.method === 'get') {
+    config.params = { ...config.params, timestamp: ts }
+  } else {
+    if (config.data && typeof config.data === 'object') {
+      config.data = { ...config.data, timestamp: ts }
+    }
+  }
   return config
 })
 

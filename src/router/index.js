@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Overview from '../components/Overview.vue'
 import SeatAll from '../components/SeatAll.vue'
 import Login from '../components/Login.vue'
-import { authStore, validateToken } from '../store/auth'
+import { authStore } from '../store/auth'
 
 const routes = [
   { path: '/', component: Overview },
@@ -15,24 +15,11 @@ const router = createRouter({
   routes,
 })
 
-let checked = false
-
 const PUBLIC_PATHS = ['/login']
 
-router.beforeEach(async (to) => {
+router.beforeEach((to) => {
   if (PUBLIC_PATHS.includes(to.path)) return true
-
-  if (!checked) {
-    checked = true
-    try {
-      const valid = await validateToken(authStore.token)
-      authStore.validated = valid
-    } catch {
-      authStore.validated = false
-    }
-  }
-
-  if (!authStore.validated) return '/login'
+  if (!authStore.token) return '/login'
 })
 
 export default router
