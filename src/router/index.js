@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Overview from '../components/Overview.vue'
 import SeatAll from '../components/SeatAll.vue'
+import SeatSelect from '../components/SeatSelect.vue'
 import Login from '../components/Login.vue'
 import { authStore } from '../store/auth'
 
 const routes = [
   { path: '/', component: Overview },
   { path: '/seats', component: SeatAll },
+  { path: '/select-seats', component: SeatSelect },
   { path: '/login', component: Login },
 ]
 

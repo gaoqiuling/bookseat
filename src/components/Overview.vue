@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { authStore } from '../store/auth'
+import { seatConfigStore } from '../store/seatConfig'
 import { http } from '../utils/http'
 
 const router = useRouter()
@@ -79,16 +80,15 @@ async function fetchSeats(dateStr, periodTime) {
     if (json.resultStatus?.code !== 0 && json.resultStatus?.code !== 200) return []
     return Array.isArray(json.resultValue) ? json.resultValue : []
   }
-  const [north, east] = await Promise.all([fetchArea(4), fetchArea(2)])
-  const northFiltered = north.filter(
-    s => ['5排', '6排', '7排'].includes(s.seatRow) && ['5号', '10号'].includes(s.seatNo)
-  )
-  const eastFiltered = east.filter(
-    s =>
-      (['4排', '5排'].includes(s.seatRow) && ['4号', '8号'].includes(s.seatNo)) ||
-      (s.seatRow === '6排' && ['5号', '10号'].includes(s.seatNo))
-  )
-  return { north: northFiltered, east: eastFiltered }
+  const [north, east, south] = await Promise.all([fetchArea(4), fetchArea(2), fetchArea(5)])
+  seatConfigStore.ensureDefaults(4, north)
+  seatConfigStore.ensureDefaults(2, east)
+  seatConfigStore.ensureDefaults(5, south)
+  return {
+    north: north.filter(s => seatConfigStore.getFavoriteIds(4).includes(s.seatId)),
+    east: east.filter(s => seatConfigStore.getFavoriteIds(2).includes(s.seatId)),
+    south: south.filter(s => seatConfigStore.getFavoriteIds(5).includes(s.seatId)),
+  }
 }
 
 // 我的预约：按日期索引 { '2026-04-10': [...] }
@@ -245,6 +245,7 @@ onMounted(() => {
         <button class="refresh-btn" :disabled="refreshing" @click="loadAll">
           {{ refreshing ? '刷新中...' : '刷新' }}
         </button>
+        <button class="select-seats-btn" @click="router.push('/select-seats')">选择佳座</button>
         <div class="account-wrap">
           <button class="switch-btn" @click="showPanel = !showPanel">
             {{ authStore.nameCn || '账号' }} ▾
@@ -300,7 +301,7 @@ onMounted(() => {
             </template>
             <template v-else-if="p.seats">
               <div class="seat-columns">
-                <div v-for="group in [{ label: '北', seats: p.seats.north }, { label: '东', seats: p.seats.east }]" :key="group.label" class="seat-col">
+                <div v-for="group in [{ label: '北', seats: p.seats.north }, { label: '东', seats: p.seats.east }, { label: '南', seats: p.seats.south }]" :key="group.label" class="seat-col">
                   <span class="seat-col-label">{{ group.label }}区</span>
                   <div class="seat-tags">
                     <span
@@ -395,6 +396,20 @@ h1 {
 .refresh-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.select-seats-btn {
+  padding: 7px 18px;
+  background: transparent;
+  color: #1a5e9a;
+  border: 1px solid #1a5e9a;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.select-seats-btn:hover {
+  background: #e8f0fb;
 }
 
 .account-wrap {
