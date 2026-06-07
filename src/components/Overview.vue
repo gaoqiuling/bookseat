@@ -111,6 +111,36 @@ async function fetchMyReservations() {
   }
 }
 
+// 取消预约
+const cancellingId = ref(null) // 正在取消的 reservationId
+
+async function cancelReservation(reservationId, dateStr, periodTime) {
+  cancellingId.value = reservationId
+  try {
+    const json = await http.get('/seatReservation/calcelReservation', { reservationId })
+    if (json.resultStatus?.code !== 0 && json.resultStatus?.code !== 200) {
+      alert('取消预约失败：' + (json.resultStatus?.message || '未知错误'))
+      return
+    }
+    await fetchMyReservations()
+    // 刷新该时段的座位状态
+    const day = dayList.value.find(d => d.date === dateStr)
+    const period = day?.periods.find(p => p.periodTime === periodTime)
+    if (period) {
+      period.seatsLoading = true
+      try {
+        period.seats = await fetchSeats(dateStr, periodTime)
+      } finally {
+        period.seatsLoading = false
+      }
+    }
+  } catch (e) {
+    alert('取消预约失败：' + e.message)
+  } finally {
+    cancellingId.value = null
+  }
+}
+
 // 预约弹窗
 const dialog = ref(null) // { date, periodTime, seat }
 const booking = ref(false)
@@ -287,10 +317,18 @@ onMounted(() => {
             <span class="period-remaining" :class="p.remaining > 0 ? 'has-remain' : 'no-remain'">
               {{ p.remaining > 0 ? `剩余 ${p.remaining}` : '已满' }}
             </span>
-            <span
-              v-if="(myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0])"
-              class="my-res-inline"
-            >已预约：{{ (myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0]).seatNo.substring(2) }}</span>
+            <template v-if="(myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0])">
+              <span class="my-res-inline">已预约：{{ (myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0]).seatNo.substring(2) }}</span>
+              <button
+                class="cancel-res-btn"
+                :disabled="cancellingId === (myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0]).reservationId"
+                @click="cancelReservation(
+                  (myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0]).reservationId,
+                  day.date,
+                  p.periodTime
+                )"
+              >{{ cancellingId === (myReservations[day.date] || []).find(r => r.startTime === p.periodTime.split('-')[0]).reservationId ? '取消中...' : '取消预约' }}</button>
+            </template>
             <button class="more-btn" @click="router.push({ path: '/seats', query: { date: day.date, periodTime: p.periodTime } })">查看更多</button>
           </div>
 
@@ -727,6 +765,26 @@ h1 {
 .my-res-inline {
   font-size: 0.78rem;
   color: #e65c00;
+}
+
+.cancel-res-btn {
+  background: transparent;
+  border: 1px solid #e65c00;
+  border-radius: 10px;
+  padding: 2px 8px;
+  color: #e65c00;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.cancel-res-btn:hover:not(:disabled) {
+  background: #fff3e0;
+  color: #d44a00;
+  border-color: #d44a00;
+}
+.cancel-res-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .more-btn {
